@@ -385,28 +385,30 @@ int main(int argc, char** argv){
                 g_predicted.y = proto::WORLD_HEIGHT - proto::PLAYER_RADIUS;
 
             // Reconciliation: gently nudge towards authoritative position
-            if (g_has_snapshot) {
-                proto::worldSnapshot s;
-                {
-                    std::lock_guard<std::mutex> lock(g_snap_mutex);
-                    s = g_latest_snapshot;
-                }
-                float auth_x = s.players[g_player_idx].x;
-                float auth_y = s.players[g_player_idx].y;
-                float dx = auth_x - g_predicted.x;
-                float dy = auth_y - g_predicted.y;
-                // If difference is large, snap more strongly
-                const float snap_threshold = 20.0f;
-                if (dx*dx + dy*dy > snap_threshold * snap_threshold) {
-                    g_predicted.x = auth_x;
-                    g_predicted.y = auth_y;
-                } else {
-                    // Smooth correction
-                    const float alpha = 0.2f;
-                    g_predicted.x += dx * alpha;
-                    g_predicted.y += dy * alpha;
-                }
-            }
+            //INFO: removed reconcilation for snappy movement for now
+
+            // if (g_has_snapshot) {
+            //     proto::worldSnapshot s;
+            //     {
+            //         std::lock_guard<std::mutex> lock(g_snap_mutex);
+            //         s = g_latest_snapshot;
+            //     }
+            //     float auth_x = s.players[g_player_idx].x;
+            //     float auth_y = s.players[g_player_idx].y;
+            //     float dx = auth_x - g_predicted.x;
+            //     float dy = auth_y - g_predicted.y;
+            //     // If difference is large, snap more strongly
+            //     const float snap_threshold = 20.0f;
+            //     if (dx*dx + dy*dy > snap_threshold * snap_threshold) {
+            //         g_predicted.x = auth_x;
+            //         g_predicted.y = auth_y;
+            //     } else {
+            //         // Smooth correction
+            //         const float alpha = 0.2f;
+            //         g_predicted.x += dx * alpha;
+            //         g_predicted.y += dy * alpha;
+            //     }
+            // }
         }
 
         // Compute render state (interpolation for remote player)
