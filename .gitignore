@@ -1,0 +1,31 @@
+# Build folders
+/build/
+build/
+*/build/
+
+# CMake cache and generated files
+CMakeFiles/
+CMakeCache.txt
+cmake_install.cmake
+Makefile
+
+# Binaries
+server/server
+client/client
+*.exe
+*.out
+*.o
+*.a
+*.so
+
+# Logs
+*.log
+
+# Editor configs
+.vscode/
+.idea/
+*.swp
+
+# OS artifacts
+.DS_Store
+Thumbs.db
