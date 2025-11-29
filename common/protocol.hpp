@@ -21,7 +21,7 @@ constexpr double SIMULATED_LATENCY=0.2;
 constexpr float WORLD_WIDTH=800.0f;
 constexpr float WORLD_HEIGHT=600.0f;
 
-constexpr float PLAYER_SPEED=200.0f;
+constexpr float PLAYER_SPEED=300.0f;
 
 constexpr float PLAYER_RADIUS=15.0f;
 constexpr float COIN_RADIUS=10.0f;

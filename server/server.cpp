@@ -21,7 +21,7 @@ using std::cout;
 using std::cerr;
 using std::endl;
 
-#define nl "\nl"
+#define nl "\n"
 
 //----- networking helpers -----
 
@@ -130,10 +130,10 @@ void update_world(double dt){
         p.y+=p.vy*static_cast<float>(dt);
 
         if(p.x<proto::PLAYER_RADIUS) p.x=proto::PLAYER_RADIUS;
-        if(p.x<proto::WORLD_WIDTH-proto::PLAYER_RADIUS)
+        if(p.x>proto::WORLD_WIDTH-proto::PLAYER_RADIUS)
             p.x=proto::WORLD_WIDTH-proto::PLAYER_RADIUS;
         if(p.y<proto::PLAYER_RADIUS) p.y=proto::PLAYER_RADIUS;
-        if(p.y<proto::WORLD_HEIGHT-proto::PLAYER_RADIUS)
+        if(p.y>proto::WORLD_HEIGHT-proto::PLAYER_RADIUS)
             p.y=proto::WORLD_HEIGHT-proto::PLAYER_RADIUS;
     }
 
@@ -171,6 +171,7 @@ proto::worldSnapshot build_snapshot(int tick){
     for(int i=0;i<2;i++){
         s.players[i].id=g_players[i].id;
         s.players[i].x=g_players[i].x;
+        s.players[i].y=g_players[i].y;
         s.players[i].score=g_players[i].score;
     }
 
@@ -199,7 +200,7 @@ void broadcast_state(int tick) {
 void handle_client(int player_id, int sock){
     cout<<"Client thread started for player "<<(player_id+1)<<nl;
     {
-        std::string welcome="WELCOME"+std::to_string(player_id+1);
+        std::string welcome="WELCOME "+std::to_string(player_id+1);
         send_line(sock,welcome);
     }
 

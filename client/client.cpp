@@ -22,7 +22,7 @@ using std::cout;
 using std::cerr;
 using std::endl;
 
-#define nl "\n";
+#define nl "\n"
 
 // Networking helpers
 bool send_all(int sock,const std::string& data){
@@ -178,7 +178,8 @@ RenderState compute_render_state(){
     rs.local_x=g_predicted.x;
     rs.local_y=g_predicted.y;
 
-    const double interp_delay=proto::SIMULATED_LATENCY; // 0.2
+    // const double interp_delay=proto::SIMULATED_LATENCY; // 0.2
+    const double interp_delay=0.1;
     double t_render=now_seconds()-interp_delay;
     
     TimedSnapshot A=snaps_copy.front();
@@ -186,9 +187,12 @@ RenderState compute_render_state(){
 
     if(snaps_copy.size()>=2){
         for(size_t i=2;i<snaps_copy.size();i++){
-            A=snaps_copy[i-1];
-            B=snaps_copy[i];
-            break;
+            if(snaps_copy[i].recv_time>=t_render){
+
+                A=snaps_copy[i-1];
+                B=snaps_copy[i];
+                break;
+            }
         }
     }
     else{
@@ -370,10 +374,13 @@ int main(int argc, char** argv){
             g_predicted.y += g_predicted.vy * (float)dt;
 
             // Clamp to world bounds
-            if (g_predicted.x < proto::PLAYER_RADIUS) g_predicted.x = proto::PLAYER_RADIUS;
+            if (g_predicted.x < proto::PLAYER_RADIUS) 
+                g_predicted.x = proto::PLAYER_RADIUS;
             if (g_predicted.x > proto::WORLD_WIDTH - proto::PLAYER_RADIUS)
                 g_predicted.x = proto::WORLD_WIDTH - proto::PLAYER_RADIUS;
-            if (g_predicted.y < proto::PLAYER_RADIUS) g_predicted.y = proto::PLAYER_RADIUS;
+
+            if (g_predicted.y < proto::PLAYER_RADIUS) 
+                g_predicted.y = proto::PLAYER_RADIUS;
             if (g_predicted.y > proto::WORLD_HEIGHT - proto::PLAYER_RADIUS)
                 g_predicted.y = proto::WORLD_HEIGHT - proto::PLAYER_RADIUS;
 
@@ -389,13 +396,13 @@ int main(int argc, char** argv){
                 float dx = auth_x - g_predicted.x;
                 float dy = auth_y - g_predicted.y;
                 // If difference is large, snap more strongly
-                const float snap_threshold = 30.0f;
+                const float snap_threshold = 20.0f;
                 if (dx*dx + dy*dy > snap_threshold * snap_threshold) {
                     g_predicted.x = auth_x;
                     g_predicted.y = auth_y;
                 } else {
                     // Smooth correction
-                    const float alpha = 0.1f;
+                    const float alpha = 0.2f;
                     g_predicted.x += dx * alpha;
                     g_predicted.y += dy * alpha;
                 }
