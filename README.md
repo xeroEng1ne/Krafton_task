@@ -185,7 +185,7 @@ Example: `10.184.24.106`
 | Move   | WASD or Arrow keys |
 | Quit   | Close window       |
 
->[! TIP]
+>[!TIP]
 > Use the bumping mechanic!
 
 ## ✨ Features Implemented
