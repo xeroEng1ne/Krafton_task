@@ -1,182 +1,219 @@
+# 🕹️ **LAN Multiplayer Coin Collector (C++ + SDL2)**
 
-# 🕹️ Multiplayer Coin Collector Game
+A lightweight 2-player real-time multiplayer minigame:
 
-This project implements a lightweight real-time multiplayer 2D game prototype using **C++**, **Sockets**, and **SDL2**, without relying on external networking or game engines.
-It demonstrates:
+✔️ Lockstep networking
+✔️ Client-side prediction
+✔️ Server reconciliation
+✔️ Tick-based world snapshots
+✔️ Latency-friendly interpolation
+✔️ Collision sound effects and background music
+✔️ Waiting state until both players join
+✔️ Score UI
 
-* Client-side prediction
-* Server-authoritative world state
-* Snapshot interpolation for remote entities
-* Simulated network latency
-* Player movement and collectible scoring
-
----
-
-## 🚀 Features
-
-| Feature                                | Status |
-| -------------------------------------- | ------ |
-| Two-player online multiplayer          | ✔️     |
-| Authoritative server tick loop         | ✔️     |
-| Client input → prediction              | ✔️     |
-| Snapshot state replication             | ✔️     |
-| Interpolation for remote player        | ✔️     |
-| Server-side latency simulation (200ms) | ✔️     |
-| Scoring + collectible coin spawning    | ✔️     |
-| SDL2 rendering (players + coin)        | ✔️     |
-
----
-
-## 🛠️ Requirements
-
-Tested on:
-
-* **Arch Linux**
-* `g++ / clang`
-* `cmake`
-* `SDL2`
-
-Install dependencies (Arch):
-
-```bash
-sudo pacman -S cmake sdl2 gcc make git
-```
+Two players connect over LAN and race to collect coins. First to collect more coins wins.
 
 ---
 
 ## 📁 Project Structure
 
 ```
-/multiplayer-game
- ├── client/
- │    └── client.cpp        ← networking + prediction + rendering
- ├── server/
- │    └── server.cpp        ← authoritative game loop
- ├── common/
- │    ├── protocol.hpp      ← message format + constants
- │    └── utils.hpp         ← timing helpers
- ├── CMakeLists.txt
- └── README.md
+.
+├── assets/
+│   ├── font.ttf
+│   ├── music.mp3
+│   ├── coin.wav
+│   └── bump.wav
+├── build/
+├── client/
+│   └── client.cpp
+├── server/
+│   └── server.cpp
+├── common/
+│   ├── protocol.hpp
+│   └── utils.hpp
+└── CMakeLists.txt
 ```
 
 ---
 
-## 🔧 Build Instructions
+## 🚀 Build & Run Instructions
+
+### 🔧 Requirements
+
+| Component                     | Required |
+| ----------------------------- | -------- |
+| C++ compiler (GCC/Clang/MSVC) | ✔️       |
+| SDL2                          | ✔️       |
+| SDL2_ttf                      | ✔️       |
+| SDL2_mixer                    | ✔️       |
+| CMake ≥ 3.12                  | ✔️       |
+
+---
+
+### 🐧 Ubuntu / Debian (Recommended)
 
 ```bash
-mkdir build
-cd build
+sudo apt update
+sudo apt install build-essential cmake libsdl2-dev libsdl2-ttf-dev libsdl2-mixer-dev
+git clone <repo>
+cd <repo>
+mkdir build && cd build
 cmake ..
 make
 ```
 
-This produces:
-
-* `server/server`
-* `client/client`
-
----
-
-## 🎮 How to Run
-
-Open **three terminals**:
-
-### 1️⃣ Start the server:
+Run server:
 
 ```bash
 ./server/server
 ```
 
-### 2️⃣ Launch Client 1:
+Run client:
 
 ```bash
-./client/client
+./client/client <SERVER_IP>
 ```
 
-### 3️⃣ Launch Client 2:
+---
+
+### 🐧 Arch Linux (Recommended)
 
 ```bash
-./client/client
+sudo pacman -S cmake sdl2 sdl2_ttf sdl2_mixer
+git clone <repo>
+cd <repo>
+mkdir build && cd build
+cmake ..
+make
 ```
+
+Run the game as above.
 
 ---
 
-## 🧠 How the Networking Works
+### 🍎 macOS
 
-### 🔹 Input → Server
+Install dependencies:
 
-Clients send input as compact messages:
-
-```
-INPUT <seq> <dx> <dy>
+```bash
+brew install cmake sdl2 sdl2_ttf sdl2_mixer
 ```
 
-The server does **not** store velocity permanently.
-Each tick, movement is updated based on the last received input.
+Build:
+
+```bash
+git clone <repo>
+cd <repo>
+mkdir build && cd build
+cmake ..
+make
+```
+
+Run normally.
+
+> [!NOTE]
+> SDL2 sometimes can cause errors in Apple silicon chips
 
 ---
 
-### 🔹 Server Simulation (Authoritative)
+### 🪟 Windows
 
-The server runs at a **fixed update rate**:
+#### Option A — MSYS2
 
+```bash
+pacman -S mingw-w64-x86_64-cmake mingw-w64-x86_64-gcc mingw-w64-x86_64-SDL2 \
+mingw-w64-x86_64-SDL2_mixer mingw-w64-x86_64-SDL2_ttf
 ```
-TICK_RATE = 30 Hz
+
+Then:
+
+```bash
+mkdir build && cd build
+cmake .. -G "MinGW Makefiles"
+mingw32-make
 ```
 
-During each tick:
+#### Option B — Visual Studio + vcpkg
 
-1. Apply queued inputs (with artificial delay to simulate lag)
-2. Update world (position, coin pickup, scoring)
-3. Broadcast snapshot:
+```bash
+vcpkg install sdl2 sdl2-mixer sdl2-ttf
+```
 
-```
-STATE tick time px1 py1 score1 px2 py2 score2 coin_x coin_y active
-```
+Open in Visual Studio & build.
+
+>[!NOTE]
+> A smoother way to run in windows is to install WSL (Windows Subsystem for Linux) and then follow the linux instructions
 
 ---
 
-### 🔹 Client Rendering Strategy
+## 🖧 Multiplayer Instructions
 
-| Local Player                              | Remote Player                        |
-| ----------------------------------------- | ------------------------------------ |
-| Client-side prediction (instant movement) | Interpolated between older snapshots |
+1. **Pick one machine as server**
 
-This hides latency and prevents jitter.
+   ```bash
+   ./server/server
+   ```
 
----
+2. Get its LAN IP:
 
-## ⏳ Simulated Latency
-
-The server intentionally delays processing input:
-
-```
-SIMULATED_LATENCY = 0.2s
+```bash
+ipconfig       # Windows  
+ifconfig       # macOS  
+ip addr        # Linux
 ```
 
-This demonstrates realistic networking behavior such as:
+Example: `10.184.24.106`
 
-* input buffering,
-* delayed correction,
-* state smoothing.
+3. **Other machine(s) connect using that IP:**
 
----
+```bash
+./client/client 10.184.24.106
+```
 
-## 🎨 Controls
+4. Game begins **only when both players have joined**.
+   Until then, the client displays:
 
-| Action     | Key          |
-| ---------- | ------------ |
-| Move Up    | `W` or `↑`   |
-| Move Down  | `S` or `↓`   |
-| Move Left  | `A` or `←`   |
-| Move Right | `D` or `→`   |
-| Quit       | Close window |
+> ⏳ *Waiting for another player to join…*
 
 ---
 
-## 🧪 Known Limitations / To-Do
+## 🎮 Controls
 
-* No player-player collision yet
-* No UI text rendering yet (scores visible only in terminal)
+| Action | Key                |
+| ------ | ------------------ |
+| Move   | WASD or Arrow keys |
+| Quit   | Close window       |
+
+>[! TIP]
+> Use the bumping mechanic!
+
+## ✨ Features Implemented
+
+* 📡 Robust TCP client/server architecture
+* 🎯 Deterministic game state with authoritative server control
+* 🚀 Client-side prediction
+* 🤝 Smooth remote interpolation
+* ⏱ 20 Hz server tick + 60 FPS rendering
+* 🎵 Background music + WAV sound effects
+* 👀 Connection lobby with UI feedback
+* 🏆 Real-time score display
+* 💥 Collision alert sound
 
 ---
+
+## 🧪 Notes on Networking Approach
+
+This project intentionally avoids:
+
+🚫 Unity Netcode
+🚫 Third-party authoritative sync libraries
+🚫 High-level replication frameworks
+
+Instead, it demonstrates:
+
+* Manual TCP messaging
+* Serialized world state messages
+* Tick-based synchronization
+* Prediction/reconciliation pattern
+
