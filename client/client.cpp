@@ -1,5 +1,6 @@
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_mixer.h>
+#include <SDL2/SDL_ttf.h>
 #include <iostream>
 #include <thread>
 #include <atomic>
@@ -63,6 +64,7 @@ struct PredictedState {
 };
 
 std::atomic<bool> g_running{true};
+std::atomic<bool> g_ready_to_play{false};
 int g_sock=-1;
 
 int g_player_id=0; // player id
@@ -121,6 +123,9 @@ void network_thread_func(){
             else if(line.rfind("STATE",0)==0){
                 proto::worldSnapshot s;
                 if(proto::decode_state(line,s)){
+                    if(!g_ready_to_play){
+                        g_ready_to_play=true;
+                    }
                     TimedSnapshot ts;
                     ts.snap=s;
                     ts.recv_time=now_seconds();
@@ -236,6 +241,21 @@ RenderState compute_render_state(){
     return rs;
 }
 
+
+void render_text(SDL_Renderer* renderer, TTF_Font* font, const std::string& text, int x, int y) {
+    SDL_Color color={255, 255, 255, 255}; // white
+    SDL_Surface* surface=TTF_RenderText_Solid(font, text.c_str(), color);
+    if(!surface) return;
+
+    SDL_Texture* texture=SDL_CreateTextureFromSurface(renderer, surface);
+    SDL_Rect rect={x, y, surface->w, surface->h};
+
+    SDL_RenderCopy(renderer, texture, nullptr, &rect);
+
+    SDL_FreeSurface(surface);
+    SDL_DestroyTexture(texture);
+}
+
 // main
 
 int main(int argc, char** argv){
@@ -281,6 +301,9 @@ int main(int argc, char** argv){
         ::close(g_sock);
         return 1;
     }
+    if(TTF_Init()<0){
+        cerr<<"TTF_Init failed: "<<TTF_GetError()<<endl;
+    }
 
     // audio init
     if(Mix_OpenAudio(44100, MIX_DEFAULT_FORMAT, 2, 2048)<0){
@@ -313,6 +336,11 @@ int main(int argc, char** argv){
         net_thread.join();
         ::close(g_sock);
         return 1;
+    }
+
+    TTF_Font* font=TTF_OpenFont("../assets/font.ttf",24);
+    if(!font){
+        cerr<<"Failed to load font: "<<TTF_GetError()<<endl;
     }
 
     // load music
@@ -433,7 +461,41 @@ int main(int argc, char** argv){
         SDL_SetRenderDrawColor(renderer, 20, 20, 20, 255);
         SDL_RenderClear(renderer);
 
+        // waiting screen
+        if(!g_ready_to_play){
+            float blink=fmod(now_seconds()*1.5,2.0); // show pulse
+            Uint8 alpha=(blink>1.0) ?
+                (Uint8)((2.0-blink)*255) :
+                (Uint8)(blink*255);
+
+            SDL_Color color={255,255,255,alpha};
+            std::string waiting_text="Waiting for the other player to join...";
+
+            // render in middle
+            SDL_Surface* surf=TTF_RenderText_Solid(font,waiting_text.c_str(),{255,255,255,255});
+            if(surf){
+                SDL_Texture* tex=SDL_CreateTextureFromSurface(renderer, surf);
+
+                SDL_Rect rect;
+                rect.w=surf->w;
+                rect.h=surf->h;
+                rect.x=proto::WORLD_WIDTH/2-rect.w/2;
+                rect.y=proto::WORLD_HEIGHT/2-rect.h/2;
+
+                SDL_SetTextureAlphaMod(tex, alpha);
+                SDL_RenderCopy(renderer,tex,NULL,&rect);
+
+                SDL_FreeSurface(surf);
+                SDL_DestroyTexture(tex);
+            }
+
+            SDL_RenderPresent(renderer);
+            continue;
+        }
+
+        // gameplay draw
         if (rs.ready && g_predicted.initialized) {
+
             // Draw local player (blue)
             SDL_Rect local_rect;
             local_rect.w = (int)(proto::PLAYER_RADIUS * 2.0f);
@@ -462,6 +524,12 @@ int main(int argc, char** argv){
                 SDL_SetRenderDrawColor(renderer, 240, 220, 50, 255);
                 SDL_RenderFillRect(renderer, &coin_rect);
             }
+            
+            // score
+            if(font && rs.ready){
+                std::string s="You: "+std::to_string(rs.local_score)+" Opp: "+std::to_string(rs.remote_score);
+                render_text(renderer,font,s,10,10);
+            }
         }
 
         SDL_RenderPresent(renderer);
@@ -484,6 +552,8 @@ int main(int argc, char** argv){
         Mix_FreeMusic(bgm);
     }
     Mix_CloseAudio();
+    if(font) TTF_CloseFont(font);
+    TTF_Quit();
     SDL_DestroyRenderer(renderer);
     SDL_DestroyWindow(window);
     SDL_Quit();

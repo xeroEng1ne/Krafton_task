@@ -8,4 +8,4 @@ add_executable(client
     ../common/utils.hpp
 )
 
-target_link_libraries(client ${SDL2_LIBRARIES} SDL2_mixer)
+target_link_libraries(client ${SDL2_LIBRARIES} SDL2_mixer SDL2_ttf)
