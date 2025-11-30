@@ -1,4 +1,5 @@
 #include <SDL2/SDL.h>
+#include <SDL2/SDL_mixer.h>
 #include <iostream>
 #include <thread>
 #include <atomic>
@@ -269,13 +270,20 @@ int main(int argc, char** argv){
     std::thread net_thread(network_thread_func);
 
     // Init SDL
-    if (SDL_Init(SDL_INIT_VIDEO) != 0) {
+    if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO) != 0) {
         cerr << "SDL_Init failed: " << SDL_GetError() << endl;
         g_running = false;
         net_thread.join();
         ::close(g_sock);
         return 1;
     }
+
+    // audio init
+    if(Mix_OpenAudio(44100, MIX_DEFAULT_FORMAT, 2, 2048)<0){
+        cerr<<"Mix_OpenAudio failed: "<<Mix_GetError()<<endl;
+    }
+
+    Mix_Music* bgm=nullptr;
 
     SDL_Window* window = SDL_CreateWindow(
         "Multiplayer Client",
@@ -301,6 +309,15 @@ int main(int argc, char** argv){
         net_thread.join();
         ::close(g_sock);
         return 1;
+    }
+
+    // load music
+    bgm=Mix_LoadMUS("../assets/music.mp3");
+    if(!bgm){
+        cerr<<"Failed to load music: "<<Mix_GetError()<<endl;
+    }
+    else{
+        Mix_PlayMusic(bgm,-1);
     }
 
     // Main loop
@@ -464,6 +481,11 @@ int main(int argc, char** argv){
     cout << "Shutting down client.\n";
     ::close(g_sock);
     net_thread.join();
+    if(bgm){
+        Mix_HaltMusic();
+        Mix_FreeMusic(bgm);
+    }
+    Mix_CloseAudio();
     SDL_DestroyRenderer(renderer);
     SDL_DestroyWindow(window);
     SDL_Quit();
