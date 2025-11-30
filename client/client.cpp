@@ -70,6 +70,12 @@ int g_sock=-1;
 int g_player_id=0; // player id
 int g_player_idx=0; // player index
 
+Mix_Music* bgm=nullptr;
+Mix_Chunk* sfx_coin=nullptr;
+Mix_Chunk* sfx_bump=nullptr;
+int last_score=0;
+bool last_bump_state=false;
+
 std::mutex g_snap_mutex;
 std::deque<TimedSnapshot> g_snapshots;
 bool g_has_snapshot=false;
@@ -186,14 +192,13 @@ RenderState compute_render_state(){
 
     // const double interp_delay=proto::SIMULATED_LATENCY; // 0.2
     const double interp_delay=0.1;
-    double t_render=now_seconds()-interp_delay;
     double target_server_time=snaps_copy.back().snap.server_time-interp_delay;
     
     TimedSnapshot A=snaps_copy.front();
     TimedSnapshot B=snaps_copy.back();
 
     if(snaps_copy.size()>=2){
-        for(size_t i=2;i<snaps_copy.size();i++){
+        for(size_t i=1;i<snaps_copy.size();i++){
             double prev_t=snaps_copy[i-1].snap.server_time;
             double curr_t=snaps_copy[i].snap.server_time;
             if(curr_t>=target_server_time){
@@ -310,7 +315,15 @@ int main(int argc, char** argv){
         cerr<<"Mix_OpenAudio failed: "<<Mix_GetError()<<endl;
     }
 
-    Mix_Music* bgm=nullptr;
+    // -- sfx --
+    sfx_coin=Mix_LoadWAV("../assets/coin.wav");
+    if(!sfx_coin){
+        cerr<<"failed to load coin pickup sound: "<<Mix_GetError()<<endl;
+    }
+    sfx_bump=Mix_LoadWAV("../assets/bump.wav");
+    if(!sfx_bump){
+        cerr<<"failed to load bump sound: "<<Mix_GetError()<<endl;
+    }
 
     SDL_Window* window = SDL_CreateWindow(
         "Multiplayer Client",
@@ -530,7 +543,27 @@ int main(int argc, char** argv){
                 std::string s="You: "+std::to_string(rs.local_score)+" Opp: "+std::to_string(rs.remote_score);
                 render_text(renderer,font,s,10,10);
             }
+            // play coin pickup sound when score increases
+            if(rs.local_score > last_score){
+                Mix_PlayChannel(-1, sfx_coin, 0);
+                last_score = rs.local_score;
+            }
         }
+
+
+        // Detect collision distance (client-side approximation)
+        float dx = rs.remote_x - g_predicted.x;
+        float dy = rs.remote_y - g_predicted.y;
+        float dist_sq = dx*dx + dy*dy;
+        float minDist = proto::PLAYER_RADIUS * 2.0f;
+
+        bool bump_now = (dist_sq < (minDist * minDist));
+
+        // Play bump sound only when collision begins (not every frame)
+        if(bump_now && !last_bump_state){
+            Mix_PlayChannel(-1, sfx_bump, 0);
+        }
+        last_bump_state = bump_now;
 
         SDL_RenderPresent(renderer);
 
@@ -551,6 +584,8 @@ int main(int argc, char** argv){
         Mix_HaltMusic();
         Mix_FreeMusic(bgm);
     }
+    if(sfx_coin) Mix_FreeChunk(sfx_coin);
+    if(sfx_bump) Mix_FreeChunk(sfx_bump);
     Mix_CloseAudio();
     if(font) TTF_CloseFont(font);
     TTF_Quit();

@@ -137,6 +137,23 @@ void update_world(double dt){
             p.y=proto::WORLD_HEIGHT-proto::PLAYER_RADIUS;
     }
 
+    // player collision
+    float dx=g_players[0].x-g_players[1].x;
+    float dy=g_players[0].y-g_players[1].y;
+    float dist=std::sqrt(dx*dx+dy*dy);
+
+    float minDist=proto::PLAYER_RADIUS*2.0f;
+    if (dist<minDist && dist > 0.0f){
+        float push=(minDist - dist)*0.5f;
+        float nx=dx/dist;
+        float ny=dy/dist;
+
+        g_players[0].x+=nx*push;
+        g_players[0].y+=ny*push;
+        g_players[1].x-=nx*push;
+        g_players[1].y-=ny*push;
+    }
+
     // coin spawning
     if(!g_coin.active){
         spawn_coin();
