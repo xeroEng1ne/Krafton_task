@@ -182,14 +182,16 @@ RenderState compute_render_state(){
     // const double interp_delay=proto::SIMULATED_LATENCY; // 0.2
     const double interp_delay=0.1;
     double t_render=now_seconds()-interp_delay;
+    double target_server_time=snaps_copy.back().snap.server_time-interp_delay;
     
     TimedSnapshot A=snaps_copy.front();
     TimedSnapshot B=snaps_copy.back();
 
     if(snaps_copy.size()>=2){
         for(size_t i=2;i<snaps_copy.size();i++){
-            if(snaps_copy[i].recv_time>=t_render){
-
+            double prev_t=snaps_copy[i-1].snap.server_time;
+            double curr_t=snaps_copy[i].snap.server_time;
+            if(curr_t>=target_server_time){
                 A=snaps_copy[i-1];
                 B=snaps_copy[i];
                 break;
@@ -201,11 +203,13 @@ RenderState compute_render_state(){
     }
 
     double t;
-    if(B.recv_time==A.recv_time){
+    double At=A.snap.server_time;
+    double Bt=B.snap.server_time;
+    if(At==Bt){
         t=0.0;
     }
     else{
-        t=(t_render-A.recv_time)/(B.recv_time-A.recv_time);
+        t=(target_server_time-At)/(Bt-At);
         t=std::clamp(t,0.0,1.0);
     }
 
@@ -402,30 +406,24 @@ int main(int argc, char** argv){
                 g_predicted.y = proto::WORLD_HEIGHT - proto::PLAYER_RADIUS;
 
             // Reconciliation: gently nudge towards authoritative position
-            //INFO: removed reconcilation for snappy movement for now
 
-            // if (g_has_snapshot) {
-            //     proto::worldSnapshot s;
-            //     {
-            //         std::lock_guard<std::mutex> lock(g_snap_mutex);
-            //         s = g_latest_snapshot;
-            //     }
-            //     float auth_x = s.players[g_player_idx].x;
-            //     float auth_y = s.players[g_player_idx].y;
-            //     float dx = auth_x - g_predicted.x;
-            //     float dy = auth_y - g_predicted.y;
-            //     // If difference is large, snap more strongly
-            //     const float snap_threshold = 20.0f;
-            //     if (dx*dx + dy*dy > snap_threshold * snap_threshold) {
-            //         g_predicted.x = auth_x;
-            //         g_predicted.y = auth_y;
-            //     } else {
-            //         // Smooth correction
-            //         const float alpha = 0.2f;
-            //         g_predicted.x += dx * alpha;
-            //         g_predicted.y += dy * alpha;
-            //     }
-            // }
+            if (g_has_snapshot) {
+                proto::worldSnapshot s;
+                {
+                    std::lock_guard<std::mutex> lock(g_snap_mutex);
+                    s = g_latest_snapshot;
+                }
+                float auth_x = s.players[g_player_idx].x;
+                float auth_y = s.players[g_player_idx].y;
+                float dx = auth_x - g_predicted.x;
+                float dy = auth_y - g_predicted.y;
+
+                const float snap_threshold = 5.0f;
+                if (dx*dx + dy*dy > snap_threshold * snap_threshold) {
+                    g_predicted.x = auth_x;
+                    g_predicted.y = auth_y;
+                }
+            }
         }
 
         // Compute render state (interpolation for remote player)
